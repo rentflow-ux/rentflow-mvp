@@ -4,6 +4,23 @@ $route = trim($_GET['route'] ?? '', '/');
 $method = $_SERVER['REQUEST_METHOD'];
 $body = json_decode(file_get_contents('php://input'), true) ?: [];
 if ($route === 'health') json_out(['ok'=>true,'service'=>'rentflow']);
+if ($route === 'meta-webhook' && $method === 'GET') {
+  $expected = getenv('META_VERIFY_TOKEN') ?: '';
+  $provided = $_GET['hub_verify_token'] ?? '';
+  if ($expected !== '' && hash_equals($expected, $provided)) {
+    header('Content-Type: text/plain'); echo $_GET['hub_challenge'] ?? ''; exit;
+  }
+  json_out(['error'=>'verification_failed'],403);
+}
+if ($route === 'meta-webhook' && $method === 'POST') {
+  $target = getenv('N8N_WEBHOOK_URL') ?: '';
+  if ($target !== '') {
+    $payload = json_encode($body);
+    $context = stream_context_create(['http'=>['method'=>'POST','header'=>"Content-Type: application/json\r\n",'content'=>$payload,'timeout'=>8,'ignore_errors'=>true]]);
+    @file_get_contents($target, false, $context);
+  }
+  json_out(['received'=>true]);
+}
 try {
   $pdo = db();
   if ($route === 'vehicles/available' && $method === 'GET') {
@@ -28,4 +45,3 @@ try {
   }
   json_out(['error'=>'not_found'],404);
 } catch(Throwable $e) { json_out(['error'=>'service_unavailable'],503); }
-
