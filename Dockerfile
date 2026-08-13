@@ -5,5 +5,4 @@ COPY . /app/
 RUN chown -R www-data:www-data /app
 USER www-data
 EXPOSE 80
-CMD ["php", "-S", "0.0.0.0:80", "router.php"]
-
+CMD ["sh", "-c", "php -S 0.0.0.0:${PORT:-8080} router.php"]
